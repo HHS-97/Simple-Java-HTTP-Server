@@ -97,6 +97,32 @@ Java의 `ServerSocket`과 `Socket`을 사용하여 **브라우저와 직접 TCP 
 - 직접 작성한 HTML 문자열이 브라우저에 렌더링됨
 - Java 소켓 기반으로 HTTP 통신이 실제로 동작함을 확인
 
+### 6. Multiple Connections 처리 (Thread 기반 서버 구조)
+
+여러 클라이언트의 동시 접속을 처리하기 위해 **Thread 기반의 멀티 커넥션 서버 구조**를 구현했습니다.  
+서버는 연결 수락과 실제 HTTP 통신을 분리하여 처리합니다.
+
+#### 구조 개요
+
+- `ServerListenerThread`
+
+  - `ServerSocket`을 통해 클라이언트 연결을 지속적으로 수락
+  - 연결이 발생하면 클라이언트 전용 `Socket`을 생성
+  - 실제 통신 처리를 워커 스레드에 위임
+
+- `HttpConnectionWorkerThread`
+  - 클라이언트 1명당 1개의 스레드
+  - HTTP 요청 수신 및 HTTP 응답 전송 담당
+  - 통신 종료 후 스트림 및 소켓 자원 정리
+
+#### 처리 흐름
+
+1. `ServerListenerThread`가 지정된 포트에서 연결 요청을 대기
+2. 클라이언트가 접속하면 `accept()`를 통해 `Socket` 생성
+3. 생성된 `Socket`을 `HttpConnectionWorkerThread`에 전달
+4. 워커 스레드에서 HTTP 요청/응답 처리
+5. 각 클라이언트는 독립적인 스레드에서 처리됨
+
 ### 🧠 학습 포인트
 
 - 설정 파일을 외부로 분리하여 확장성과 유지보수성 확보
