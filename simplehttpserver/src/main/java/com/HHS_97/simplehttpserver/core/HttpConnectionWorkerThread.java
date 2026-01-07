@@ -37,6 +37,16 @@ public class HttpConnectionWorkerThread extends Thread {
 			// → HTTP 응답 메시지(Status Line + Headers + Body)를 송신
 			outputStream = socket.getOutputStream();
 			
+			// HTTP 요청을 바이트 단위로 읽기 위한 임시 변수
+			int _byte;
+			
+			// 클라이언트가 보낸 HTTP 요청 전체를 끝까지 읽음 (디버깅/학습 목적)
+			while ( (_byte = inputStream.read()) >= 0) {
+				
+				// 읽은 바이트를 문자로 변환하여 콘솔에 출력
+				System.out.print((char) _byte);
+			}
+			
 			// 브라우저로 보낼 html
 			String html = "<html lang=\"ko\"><head><meta charset=\"UTF-8\"></head><title>Simple Java HTTP Server</title><body><h1>이 서버는 제가 만든 simple java http 서버를 사용하고 있습니다.</h1></body></html>";
 			

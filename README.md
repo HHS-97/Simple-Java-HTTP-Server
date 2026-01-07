@@ -123,6 +123,22 @@ Java의 `ServerSocket`과 `Socket`을 사용하여 **브라우저와 직접 TCP 
 4. 워커 스레드에서 HTTP 요청/응답 처리
 5. 각 클라이언트는 독립적인 스레드에서 처리됨
 
+### 7. HTTP 요청 파싱 준비 (Part 5: Parsing Requests 기반)
+
+브라우저가 서버로 보내는 HTTP 요청을 “읽고 해석(파싱)”하기 위한 준비를 진행했습니다.
+
+#### 핵심 아이디어
+
+- HTTP 요청은 소켓의 `InputStream`으로 들어오는 **바이트/문자 스트림**이다.
+- 따라서 네트워크 환경 없이도, 동일한 입력을 **테스트 코드에서 재현**할 수 있다.
+
+#### 구현 내용
+
+- `HttpParserTest`에서 브라우저 요청 형태의 Raw HTTP 문자열을 작성
+- `ByteArrayInputStream`으로 감싸 **InputStream을 가짜로 생성**
+- `HttpParser.parseHttpRequest(InputStream)`에 주입하여 파싱 로직을 테스트 기반으로 개발할 준비 완료
+- CRLF(`\r\n`) 및 헤더 종료 빈 줄(`\r\n\r\n`) 구조를 테스트 데이터에 반영
+
 ### 🧠 학습 포인트
 
 - 설정 파일을 외부로 분리하여 확장성과 유지보수성 확보
