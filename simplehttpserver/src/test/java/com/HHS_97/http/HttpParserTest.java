@@ -1,6 +1,7 @@
 package com.HHS_97.http;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
@@ -20,7 +21,7 @@ class HttpParserTest { // HttpParser 동작을 검증하는 테스트 클래스
 	}
 
 	@Test
-	void parseHttpRequest() { // "유효한 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
+	void parseHttpRequest() throws IOException { // "유효한 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
 		httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
 				generateValidTestCase() // 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
 		);

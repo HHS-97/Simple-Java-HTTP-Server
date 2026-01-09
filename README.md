@@ -139,6 +139,22 @@ Java의 `ServerSocket`과 `Socket`을 사용하여 **브라우저와 직접 TCP 
 - `HttpParser.parseHttpRequest(InputStream)`에 주입하여 파싱 로직을 테스트 기반으로 개발할 준비 완료
 - CRLF(`\r\n`) 및 헤더 종료 빈 줄(`\r\n\r\n`) 구조를 테스트 데이터에 반영
 
+### 8. HTTP 요청 파서(HttpParser) 뼈대 구현
+
+HTTP 요청(InputStream)을 파싱하여 `HttpRequest` 객체로 변환하기 위한 파서 구조를 구현했습니다.
+
+#### 구현 내용
+
+- `HttpParser.parseHttpRequest(InputStream)`에서 입력 스트림을 `InputStreamReader(US-ASCII)`로 감싸 텍스트 기반 파싱 준비
+- 파싱 단계를 `Request Line → Headers → Body`로 분리하여 확장 가능한 구조로 설계
+- `HttpMessage`, `HttpRequest`, `HttpMethod` 등 HTTP 도메인 모델 뼈대 구성
+- 파싱 오류 처리를 위해 `HttpParsingException` 및 `HttpStatusCode` enum 뼈대 구성
+
+#### 현재 진행 상황
+
+- `parseRequestLine()`에서 CRLF까지 읽어 요청 라인의 끝을 감지하는 단계까지 구현
+- 이후 단계에서 공백(SP) 기준으로 Method/Target/Version을 분해하여 `HttpRequest`에 저장할 예정
+
 ### 🧠 학습 포인트
 
 - 설정 파일을 외부로 분리하여 확장성과 유지보수성 확보
