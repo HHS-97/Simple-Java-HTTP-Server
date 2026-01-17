@@ -150,6 +150,19 @@ HTTP 요청(InputStream)을 파싱하여 `HttpRequest` 객체로 변환하기 �
 - `HttpMessage`, `HttpRequest`, `HttpMethod` 등 HTTP 도메인 모델 뼈대 구성
 - 파싱 오류 처리를 위해 `HttpParsingException` 및 `HttpStatusCode` enum 뼈대 구성
 
+### 9. HTTP Request Line 파싱 및 검증 로직 구현
+
+브라우저로부터 전달되는 HTTP 요청의 **Request Line(Method / Request Target / HTTP Version)** 을
+직접 파싱하고 검증하는 로직을 구현했습니다.
+
+#### 구현 내용
+
+HTTP 요청은 단순한 문자열이 아니라,  
+RFC에서 정의된 **엄격한 형식(Request Line + Headers + Body)** 을 따릅니다.
+
+이번 단계에서는 서버가 잘못된 요청을 **초기에 검증하고 적절한 오류를 반환**할 수 있도록  
+Request Line 파싱과 예외 처리 구조를 집중적으로 구현했습니다.
+
 #### 현재 진행 상황
 
 - `parseRequestLine()`에서 CRLF까지 읽어 요청 라인의 끝을 감지하는 단계까지 구현

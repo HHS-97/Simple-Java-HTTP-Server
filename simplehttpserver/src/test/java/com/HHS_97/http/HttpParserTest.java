@@ -1,5 +1,8 @@
 package com.HHS_97.http;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,12 +25,79 @@ class HttpParserTest { // HttpParser 동작을 검증하는 테스트 클래스
 
 	@Test
 	void parseHttpRequest() throws IOException { // "유효한 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
-		httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
-				generateValidTestCase() // 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
-		);
+		HttpRequest request = null;
+		try {
+			request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateValidGETTestCase() // 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
+			);
+		} catch (HttpParsingException e) {
+			fail(e);
+		}
+		
+		assertEquals(request.getMethod(), HttpMethod.GET);
 	}
 	
-	private InputStream generateValidTestCase() { // 테스트용 "정상 HTTP 요청" InputStream 생성기
+	@Test
+	void parseHttpRequestBadMethod1() throws IOException { // "유효하지 않은 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateBadTestCaseMethodName1() // 비정상적인 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
+			);
+			fail();
+		} catch (HttpParsingException e) {
+			assertEquals(e.getErrorCode(), HttpStatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
+		}
+	}
+	
+	@Test
+	void parseHttpRequestBadMethod2() throws IOException { // "유효하지 않은 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateBadTestCaseMethodName2() // 비정상적인 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
+			);
+			fail();
+		} catch (HttpParsingException e) {
+			assertEquals(e.getErrorCode(), HttpStatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
+		}
+	}
+	
+	@Test
+	void parseHttpRequestInvalidNumberOfItems1() throws IOException { // "유효하지 않은 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateBadTestCaseRequestLineInvalidNumberOfItems1() // 비정상적인 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
+			);
+			fail();
+		} catch (HttpParsingException e) {
+			assertEquals(e.getErrorCode(), HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		}
+	}
+	
+	@Test
+	void parseHttpEmptyRequestLine() throws IOException { // "빈 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateBadTestCaseEmptyRequestLine() // 비정상적인 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
+			);
+			fail();
+		} catch (HttpParsingException e) {
+			assertEquals(e.getErrorCode(), HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		}
+	}
+	
+	@Test
+	void parseHttpRequestLineCRnoLF() throws IOException { // "LF 없이 CR만 HTTP 요청"을 파서가 처리 가능한지 확인하는 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateBadTestCaseRequestLineOnlyCRnoLF() // 비정상적인 실제 소켓 입력처럼 보이도록 만든 InputStream 전달
+			);
+			fail();
+		} catch (HttpParsingException e) {
+			assertEquals(e.getErrorCode(), HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		}
+	}
+	
+	private InputStream generateValidGETTestCase() { // 테스트용 "정상 HTTP 요청" InputStream 생성기
 		String rawData = "GET / HTTP/1.1\r\n" // Request Line(메서드/경로/버전)
 				+ "Host: localhost:8080\r\n" // 헤더: Host
 				+ "Connection: keep-alive\r\n" // 헤더: 연결 유지
@@ -42,6 +112,81 @@ class HttpParserTest { // HttpParser 동작을 검증하는 테스트 클래스
 				+ "Sec-Fetch-User: ?1\r\n"
 				+ "Sec-Fetch-Dest: document\r\n"
 				+ "Accept-Encoding: gzip, deflate, br, zstd\r\n"
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateBadTestCaseMethodName1() { // 테스트용 "비정상 HTTP 요청" InputStream 생성기
+		String rawData = "GeT / HTTP/1.1\r\n" // Request Line(메서드/경로/버전)
+				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateBadTestCaseMethodName2() { // 테스트용 "비정상 HTTP 요청" InputStream 생성기
+		String rawData = "GETTTT / HTTP/1.1\r\n" // Request Line(메서드/경로/버전)
+				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateBadTestCaseRequestLineInvalidNumberOfItems1() { // 테스트용 "비정상 HTTP 요청" InputStream 생성기
+		String rawData = "GET / AAAAAAAA HTTP/1.1\r\n" // Request Line(메서드/경로/버전)
+				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateBadTestCaseEmptyRequestLine() { // 테스트용 "빈 요청" InputStream 생성기
+		String rawData = "\r\n" // Request Line(메서드/경로/버전)
+				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateBadTestCaseRequestLineOnlyCRnoLF() { // 테스트용 "LF 없이 CR만 HTTP 요청" InputStream 생성기
+		String rawData = "GET / HTTP/1.1\r" // <---------- no lf
+				+ "Host: localhost:8080\r\n" // 헤더: Host
 				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
 				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
 		
