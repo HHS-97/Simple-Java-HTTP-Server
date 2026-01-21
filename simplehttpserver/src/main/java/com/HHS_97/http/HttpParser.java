@@ -64,7 +64,17 @@ public class HttpParser {
 					if (!methodParsed || !requestTargetParsed) {
 						throw new HttpParsingException(HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 					}
+					
+					try {
+						request.setHttpVersion(processingDataBuffer.toString());
+					} catch (BadHttpVersionException e) {
+						throw new HttpParsingException(HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+					}
+					
 					return;
+				} else {
+					//CR 다음 byte가 LF가 아닐경우
+					throw new HttpParsingException(HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 				}
 			}
 			
@@ -80,6 +90,7 @@ public class HttpParser {
 				} else if (!requestTargetParsed) { // method는 처리했고 target은 아직이면
 					// request target을 로그로 확인
 					LOGGER.debug("Request Line REQ TARGET to Process : {}", processingDataBuffer.toString());
+					request.setRequestTarget(processingDataBuffer.toString());
 					// request target 처리가 끝났음을 표시
 					requestTargetParsed = true;
 				} else {

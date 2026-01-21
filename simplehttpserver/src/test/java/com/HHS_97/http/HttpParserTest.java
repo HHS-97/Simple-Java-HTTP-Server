@@ -1,6 +1,7 @@
 package com.HHS_97.http;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.TestInstance;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) // 클래스당 테스트 인스턴스 1개만 생성
 class HttpParserTest { // HttpParser 동작을 검증하는 테스트 클래스
-	
 	// 테스트 대상(HTTP 요청 파서)
 	private HttpParser httpParser;
 	
@@ -34,7 +34,11 @@ class HttpParserTest { // HttpParser 동작을 검증하는 테스트 클래스
 			fail(e);
 		}
 		
+		assertNotNull(request);
 		assertEquals(request.getMethod(), HttpMethod.GET);
+		assertEquals(request.getRequestTarget(), "/");
+		assertEquals(request.getOriginalHttpVersion(), "HTTP/1.1");
+		assertEquals(request.getBestCompatibleHttpVersion(), HttpVersion.HTTP_1_1);
 	}
 	
 	@Test
@@ -94,6 +98,44 @@ class HttpParserTest { // HttpParser 동작을 검증하는 테스트 클래스
 			fail();
 		} catch (HttpParsingException e) {
 			assertEquals(e.getErrorCode(), HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		}
+	}
+	
+	@Test
+	void parseHttpRequestBadHttpVersion() throws IOException { // 잘못된 HTTP 버전 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateBadHttpVersionTestCase()
+			);
+			fail();
+		} catch (HttpParsingException e) {
+			assertEquals(e.getErrorCode(), HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		}
+	}
+	
+	@Test
+	void parseHttpRequestUnsupportedHttpVersion() throws IOException { // 지원되지 않는 HTTP 버전 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateUnsupportedHttpVersionTestCase()
+			);
+			fail();
+		} catch (HttpParsingException e) {
+			assertEquals(e.getErrorCode(), HttpStatusCode.SERVER_ERROR_505_HTTP_VERSION_NOT_SUPPORTED);
+		}
+	}
+	
+	@Test
+	void parseHttpRequestSupportedHttpVersion() throws IOException { // 지원되는 HTTP 버전 테스트
+		try {
+			HttpRequest request = httpParser.parseHttpRequest( // 파서의 요청 파싱 메서드 호출
+					generateSupportedHttpVersionTestCase()
+			);
+			assertNotNull(request);
+			assertEquals(request.getBestCompatibleHttpVersion(), HttpVersion.HTTP_1_1);
+			assertEquals(request.getOriginalHttpVersion(), "HTTP/1.2");
+		} catch (HttpParsingException e) {
+			fail();
 		}
 	}
 	
@@ -187,6 +229,87 @@ class HttpParserTest { // HttpParser 동작을 검증하는 테스트 클래스
 	private InputStream generateBadTestCaseRequestLineOnlyCRnoLF() { // 테스트용 "LF 없이 CR만 HTTP 요청" InputStream 생성기
 		String rawData = "GET / HTTP/1.1\r" // <---------- no lf
 				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateBadHttpVersionTestCase() { // 형식이 잘못된 HTTP 버전을 생성하는 제너레이터
+		String rawData = "GET / HTP/1.1\r\n" // 잘못된 Request Line(메서드/경로/버전)
+				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Connection: keep-alive\r\n" // 헤더: 연결 유지
+				+ "sec-ch-ua: \"Chromium\";v=\"142\", \"Whale\";v=\"4\", \"Not.A/Brand\";v=\"99\"\r\n" // 헤더들(브라우저가 자동으로 붙임)
+				+ "sec-ch-ua-mobile: ?0\r\n"
+				+ "sec-ch-ua-platform: \"Windows\"\r\n"
+				+ "Upgrade-Insecure-Requests: 1\r\n"
+				+ "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Whale/4.35.351.13 Safari/537.36\r\n"
+				+ "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n"
+				+ "Sec-Fetch-Site: none\r\n"
+				+ "Sec-Fetch-Mode: navigate\r\n"
+				+ "Sec-Fetch-User: ?1\r\n"
+				+ "Sec-Fetch-Dest: document\r\n"
+				+ "Accept-Encoding: gzip, deflate, br, zstd\r\n"
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateUnsupportedHttpVersionTestCase() { // 지원되지 않는 HTTP 버전을 생성하는 제너레이터
+		String rawData = "GET / HTTP/2.1\r\n" // 잘못된 Request Line(메서드/경로/버전)
+				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Connection: keep-alive\r\n" // 헤더: 연결 유지
+				+ "sec-ch-ua: \"Chromium\";v=\"142\", \"Whale\";v=\"4\", \"Not.A/Brand\";v=\"99\"\r\n" // 헤더들(브라우저가 자동으로 붙임)
+				+ "sec-ch-ua-mobile: ?0\r\n"
+				+ "sec-ch-ua-platform: \"Windows\"\r\n"
+				+ "Upgrade-Insecure-Requests: 1\r\n"
+				+ "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Whale/4.35.351.13 Safari/537.36\r\n"
+				+ "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n"
+				+ "Sec-Fetch-Site: none\r\n"
+				+ "Sec-Fetch-Mode: navigate\r\n"
+				+ "Sec-Fetch-User: ?1\r\n"
+				+ "Sec-Fetch-Dest: document\r\n"
+				+ "Accept-Encoding: gzip, deflate, br, zstd\r\n"
+				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
+				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
+		
+		InputStream inputStream = new ByteArrayInputStream(  // 문자열 데이터를 InputStream처럼 읽히게 감쌈
+				rawData.getBytes( // 문자열을 바이트 배열로 변환
+						StandardCharsets.US_ASCII // 테스트 환경에 상관없이 동일한 바이트가 되도록 ASCII 지정
+				)
+		);
+		
+		return inputStream;
+	}
+	
+	private InputStream generateSupportedHttpVersionTestCase() { // 지원되는 HTTP 버전을 생성하는 제너레이터
+		String rawData = "GET / HTTP/1.2\r\n" // Request Line(메서드/경로/버전)
+				+ "Host: localhost:8080\r\n" // 헤더: Host
+				+ "Connection: keep-alive\r\n" // 헤더: 연결 유지
+				+ "sec-ch-ua: \"Chromium\";v=\"142\", \"Whale\";v=\"4\", \"Not.A/Brand\";v=\"99\"\r\n" // 헤더들(브라우저가 자동으로 붙임)
+				+ "sec-ch-ua-mobile: ?0\r\n"
+				+ "sec-ch-ua-platform: \"Windows\"\r\n"
+				+ "Upgrade-Insecure-Requests: 1\r\n"
+				+ "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Whale/4.35.351.13 Safari/537.36\r\n"
+				+ "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n"
+				+ "Sec-Fetch-Site: none\r\n"
+				+ "Sec-Fetch-Mode: navigate\r\n"
+				+ "Sec-Fetch-User: ?1\r\n"
+				+ "Sec-Fetch-Dest: document\r\n"
+				+ "Accept-Encoding: gzip, deflate, br, zstd\r\n"
 				+ "Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
 				+ "\r\n"; // 빈 줄: 헤더 종료(HTTP 요청에서 매우 중요)
 		

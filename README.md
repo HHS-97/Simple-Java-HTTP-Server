@@ -105,7 +105,6 @@ Java의 `ServerSocket`과 `Socket`을 사용하여 **브라우저와 직접 TCP 
 #### 구조 개요
 
 - `ServerListenerThread`
-
   - `ServerSocket`을 통해 클라이언트 연결을 지속적으로 수락
   - 연결이 발생하면 클라이언트 전용 `Socket`을 생성
   - 실제 통신 처리를 워커 스레드에 위임
@@ -167,6 +166,38 @@ Request Line 파싱과 예외 처리 구조를 집중적으로 구현했습니�
 
 - `parseRequestLine()`에서 CRLF까지 읽어 요청 라인의 끝을 감지하는 단계까지 구현
 - 이후 단계에서 공백(SP) 기준으로 Method/Target/Version을 분해하여 `HttpRequest`에 저장할 예정
+
+### 10. HTTP Version 파싱 및 호환 처리 로직 구현
+
+Request Line에 포함된 **HTTP Version**을  
+단순 문자열이 아닌 서버가 처리 가능한 값으로 파싱하고 검증하는 로직을 구현했습니다.
+
+브라우저가 전달하는 HTTP Version은 서버가 항상 지원한다고 보장할 수 없기 때문에,  
+형식 오류와 지원 불가 상황을 구분하여 처리할 수 있도록 설계했습니다.
+
+#### 구현 내용
+
+HTTP Version은  
+RFC에서 정의된 `"HTTP/{major}.{minor}"` 형식을 따릅니다.
+
+이번 단계에서는 다음과 같은 로직을 구현했습니다.
+
+- HTTP Version 문자열 파싱
+- 형식이 잘못된 경우 → 400 Bad Request
+- 형식은 맞지만 서버가 지원하지 않는 경우 → 505 HTTP Version Not Supported
+- 동일한 Major Version 내에서는 서버가 지원하는 Minor Version 중
+  가장 높은 호환 가능한 버전을 선택
+
+#### 현재 진행 상황
+
+- `HttpVersion` enum을 통해 서버가 지원하는 HTTP Version 관리
+- 요청에서 전달된 HTTP Version을 파싱하여 major / minor 값 추출
+- 서버가 지원하는 버전 목록과 비교하여 best compatible version 결정
+- `HttpRequest`에
+  - 요청에서 전달된 원본 HTTP Version
+  - 서버가 실제로 처리할 호환 HTTP Version
+    을 각각 저장하도록 구조 확장
+- JUnit 테스트를 통해 정상 / 비정상 HTTP Version 요청 처리 검증
 
 ### 🧠 학습 포인트
 
