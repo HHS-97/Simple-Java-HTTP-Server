@@ -1,11 +1,15 @@
 package com.HHS_97.http;
 
+import java.util.HashMap;
+import java.util.Set;
+
 public class HttpRequest extends HttpMessage{ // HTTP 요청(Request)을 표현하는 도메인 객체
 
 	private HttpMethod method;
 	private String requestTarget;
 	private String originalHttpVersion; // 요청에서 받은 결과
 	private HttpVersion bestCompatibleHttpVersion;
+	private HashMap<String, String> headers = new HashMap<>(); 
 	
 	HttpRequest() {
 	}
@@ -24,6 +28,14 @@ public class HttpRequest extends HttpMessage{ // HTTP 요청(Request)을 표현�
 
 	public String getOriginalHttpVersion() {
 		return originalHttpVersion;
+	}
+	
+	public Set<String> getHeaderNames() {
+		return headers.keySet();
+	}
+	
+	public String getHeader(String headerName) {
+		return headers.get(headerName.toLowerCase());
 	}
 
 	void setMethod(String methodName) throws HttpParsingException { // 문자열로 전달된 메서드를 검증 후 설정
@@ -55,5 +67,7 @@ public class HttpRequest extends HttpMessage{ // HTTP 요청(Request)을 표현�
 		}
 	}
 	
-	
+	void addHeader(String headerName, String headerField) {
+		headers.put(headerName.toLowerCase(), headerField);
+	}
 }

@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +19,7 @@ public class HttpParser {
 	private static final int LF = 0x0A; // 10
 	
 	//InputStream으로 들어오는 Http 요청을 파싱하여 HttpRequest 객체로 변환
-	public HttpRequest parseHttpRequest(InputStream inputStream) throws IOException, HttpParsingException {
+	public HttpRequest parseHttpRequest(InputStream inputStream) throws HttpParsingException {
 		
 		//바이트 기반으로 들어오는 InputStream을 문자 단위로 읽기 위해 InputStreamReader로 감쌈 HTTP 헤더는 ASCII 기반 텍스트이므로 US_ASCII 사용
 		InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.US_ASCII);
@@ -28,10 +30,13 @@ public class HttpParser {
 		try {
 			parseRequestLine(reader, request);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		parseHeaders(reader, request);
+		try {
+			parseHeaders(reader, request);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		parseBody(reader, request);
 		
 		return request;
@@ -112,8 +117,55 @@ public class HttpParser {
 		
 	}
 
-	private void parseHeaders(InputStreamReader reader, HttpRequest request) {
+	private void parseHeaders(InputStreamReader reader, HttpRequest request) throws IOException, HttpParsingException {
+		StringBuilder processingDataBuffer = new StringBuilder();
+		boolean crlfFound = false;
 		
+		int _byte;
+		
+		//스트림에서 문자를 하나씩 읽음
+		while ((_byte = reader.read()) >= 0) {
+			//CR(Carriage Return)을 만나면
+			if(_byte == CR) {
+				//다음 문자를 읽어 LF인지 확인
+				_byte = reader.read();
+				//CRLF 조합이면 Request Line의 끝으로 판단
+				if (_byte == LF) {
+					if (!crlfFound) {
+						crlfFound = true;
+						
+						// Do things like processing
+						processSingelHeaderField(processingDataBuffer, request);
+						// Clear the buffer
+						processingDataBuffer.delete(0, processingDataBuffer.length());
+					}
+					
+					
+				} else {
+					//CR 다음 byte가 LF가 아닐경우
+					throw new HttpParsingException(HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+				}
+			} else {
+				crlfFound = false;
+				// Append to Buffer
+				processingDataBuffer.append((char) _byte);
+			}
+		}
+	}
+
+	private void processSingelHeaderField(StringBuilder processingDataBuffer, HttpRequest request) throws HttpParsingException {
+		String rawHeaderField = processingDataBuffer.toString();
+		Pattern pattern = Pattern.compile("^(?<fieldName>[!#$%&'*+\\-./^_`|~\\da-zA-Z]+):\\s*(?<fieldValue>.*)\\s*$");
+		
+		Matcher matcher = pattern.matcher(rawHeaderField);
+		if (matcher.matches()) {
+			// We found a proper header
+			String fieldName = matcher.group("fieldName");
+			String fieldValue = matcher.group("fieldValue").trim();
+			request.addHeader(fieldName.toLowerCase(), fieldValue);
+		} else {
+			throw new HttpParsingException(HttpStatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		}
 	}
 
 	private void parseBody(InputStreamReader reader, HttpRequest request) {

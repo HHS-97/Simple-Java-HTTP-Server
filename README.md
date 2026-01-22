@@ -199,6 +199,34 @@ RFC에서 정의된 `"HTTP/{major}.{minor}"` 형식을 따릅니다.
     을 각각 저장하도록 구조 확장
 - JUnit 테스트를 통해 정상 / 비정상 HTTP Version 요청 처리 검증
 
+### 11. HTTP Request의 Header 요청 처리
+
+HTTP 요청에서 Request Line 다음에는  
+여러 개의 **Header 필드**가 CRLF(`\r\n`) 단위로 이어지며,  
+빈 줄(`CRLF CRLF`)을 기준으로 Header 영역이 종료됩니다.
+
+이번 단계에서는 **HTTP Header를 직접 파싱하고 검증하여 `HttpRequest` 객체에 저장**하는 로직을 구현했습니다.
+
+#### 구현 내용
+
+- CRLF 기준으로 Header 라인 단위 파싱
+- 정규식을 이용한 Header 형식 검증
+- 잘못된 Header 형식 → 400 Bad Request
+- Header 이름을 대소문자 구분 없이 처리하도록 설계
+
+#### 현재 진행 상황
+
+- `parseHeaders()`에서 InputStream을 문자 단위로 읽어 Header 파싱
+- CRLF를 기준으로 Header 한 줄씩 분리
+- 정규식을 통해 Header Name / Value 추출
+- Header Name은 소문자로 변환하여 저장
+- `HttpRequest`에 Header Map 구조로 저장
+- JUnit 테스트를 통해
+  - 단일 Header 파싱
+  - 다중 Header 파싱
+  - 잘못된 Header 형식(콜론 앞 공백) 오류 처리
+    를 검증
+
 ### 🧠 학습 포인트
 
 - 설정 파일을 외부로 분리하여 확장성과 유지보수성 확보
